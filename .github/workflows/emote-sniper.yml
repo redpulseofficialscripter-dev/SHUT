@@ -1,0 +1,57 @@
+name: EmoteSniper Auto Update
+
+on:
+  schedule:
+    - cron: '/30 * * * *'  # Каждый час в 0 минут
+  workflow_dispatch:      # Ручной запуск
+  push:                   # Запуск при пуше в main
+
+jobs:
+  update-emotes:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write  
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Run EmoteSniper
+        run: |
+          echo "Starting EmoteSniper update..."
+          node run.js
+      
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --exit-code || echo "changes=true" >> $GITHUB_OUTPUT
+      
+      - name: Commit and push changes
+        if: steps.git-check.outputs.changes == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "🤖 Auto update emotes - $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          git push
+      
+      - name: Log completion
+        run: |
+          echo "✅ Update completed successfully"
+          if [ -f "EmoteSniper.json" ]; then
+            TOTAL_EMOTES=$(jq '.totalItems' EmoteSniper.json)
+            echo "📊 Total emotes: $TOTAL_EMOTES"
+          fi
+          if [ -f "AnimationSniper.json" ]; then
+            TOTAL_ANIMATIONS=$(jq '.totalItems' AnimationSniper.json)
+            echo "🎬 Total animations: $TOTAL_ANIMATIONS"
+          fi
